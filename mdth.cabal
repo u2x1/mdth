@@ -1,0 +1,72 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 3f12b8c7bc72243f7a16d10ab7ef624cdfd56fa1d41385abc9d02aa9eee81be1
+
+name:           mdth
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/mdth#readme>
+homepage:       https://github.com/githubuser/mdth#readme
+bug-reports:    https://github.com/githubuser/mdth/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/mdth
+
+library
+  exposed-modules:
+      Parser
+      Type
+  other-modules:
+      Paths_mdth
+  hs-source-dirs:
+      src
+  build-depends:
+      attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , word8
+  default-language: Haskell2010
+
+executable mdth-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_mdth
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , mdth
+    , word8
+  default-language: Haskell2010
+
+test-suite mdth-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_mdth
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , mdth
+    , word8
+  default-language: Haskell2010
