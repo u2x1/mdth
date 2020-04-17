@@ -41,7 +41,7 @@ addElemTag :: ByteString -> ByteString -> ByteString
 addElemTag tag x = mconcat ["<", tag, ">\n", x, "\n</", tag, ">\n"]
 
 addElemTagwithProp :: ByteString -> [(ByteString, Maybe ByteString)] -> ByteString -> ByteString
-addElemTagwithProp tag prop x = mconcat ["<", tag, mconcat.intersperse " " $ makeProp <$> prop, ">\n", x, "\n</", tag, ">\n"]
+addElemTagwithProp tag prop x = mconcat ["<", tag, " ", mconcat.intersperse " " $ makeProp <$> prop, ">\n", x, "\n</", tag, ">\n"]
   where
     makeProp (_, Nothing) = ""
     makeProp (name, (Just value)) = mconcat [name, "=\"", value, "\""]
