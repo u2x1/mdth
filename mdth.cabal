@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3f12b8c7bc72243f7a16d10ab7ef624cdfd56fa1d41385abc9d02aa9eee81be1
+-- hash: b7698125e7279efe3df5ac8e6ffff25755cf2a6a9cf0f697db7164a83a582044
 
 name:           mdth
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Convert
       Parser
       Type
   other-modules:
@@ -34,9 +35,12 @@ library
   hs-source-dirs:
       src
   build-depends:
-      attoparsec
+      QuickCheck
+    , attoparsec
     , base >=4.7 && <5
     , bytestring
+    , hspec
+    , stringsearch
     , word8
   default-language: Haskell2010
 
@@ -48,10 +52,13 @@ executable mdth-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      attoparsec
+      QuickCheck
+    , attoparsec
     , base >=4.7 && <5
     , bytestring
+    , hspec
     , mdth
+    , stringsearch
     , word8
   default-language: Haskell2010
 
@@ -59,14 +66,18 @@ test-suite mdth-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      SimpleSpec
       Paths_mdth
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      attoparsec
+      QuickCheck
+    , attoparsec
     , base >=4.7 && <5
     , bytestring
+    , hspec
     , mdth
+    , stringsearch
     , word8
   default-language: Haskell2010

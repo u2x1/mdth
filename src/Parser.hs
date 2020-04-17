@@ -9,29 +9,45 @@ import Control.Applicative
 import Type
 
 mdElem :: Parser MDElem
-mdElem = italic <|> bold <|> code <|> codeBlock <|> header <|> para
+mdElem = blockquotes <|> orderedList <|> unOrderedList <|> codeBlock <|> header <|> para
 
 para :: Parser MDElem
-para = PlainText <$> do
+para = Paragrah <$> do
+  paras <- manyTill (italic <|> bold <|> boldAndItalic <|> code <|> plainText) (satisfy isEndOfLine)
+  _ <- many' (satisfy isEndOfLine)
+  return paras
+
+plainText :: Parser MDElem
+plainText = PlainText <$> do
   w <- anyWord8
-  text <- takeTill (inClass "![_*>`")
+  text <- takeTill (inClass "![_*`\n")
   return (singleton w <> text)
+
+emphasis :: Parser ByteString
+emphasis =
+  lookAhead (satisfy (not <$> isAstrOrUds)) *>
+  takeTill isAstrOrUds
 
 italic :: Parser MDElem
 italic = do
   m <- satisfy isAstrOrUds
-  _ <- lookAhead (satisfy (not <$> isAstrOrUds))
-  text <- takeTill isAstrOrUds
+  text <- emphasis
   _ <- satisfy (== m)
   return (Italic text)
 
 bold :: Parser MDElem
 bold = do
   m <- count 2 $ satisfy isAstrOrUds
-  _ <- lookAhead (satisfy (not <$> isAstrOrUds))
-  text <- takeTill isAstrOrUds
+  text <- emphasis
   _ <- string $ pack.reverse $ m
   return (Bold text)
+
+boldAndItalic :: Parser MDElem
+boldAndItalic = do
+  m <- count 3 $ satisfy isAstrOrUds
+  text <- emphasis
+  _ <- string $ pack.reverse $ m
+  return (BoldAndItalic text)
 
 code :: Parser MDElem
 code = do
@@ -42,7 +58,7 @@ code = do
 
 codeBlock :: Parser MDElem
 codeBlock = do
-  _ <- string "```\n"
+  _ <- string "```"
   t1 <- takeTill (== 96)
   checkEnd t1
   where checkEnd t1 = do
@@ -51,6 +67,30 @@ codeBlock = do
           if s == "```"
              then return (CodeBlock $ t1 <> t2)
              else checkEnd (t1 <> s)
+
+blockquotes :: Parser MDElem
+blockquotes = do
+  _ <- word8 10
+  _ <- word8 62
+  _ <- many (word8 32)
+  curntLine <- takeTill isEndOfLine
+  case parseOnly (many mdElem) curntLine of
+    Right mdElems -> return (Blockquotes mdElems)
+    Left _ -> return (Blockquotes [PlainText curntLine])
+
+
+orderedList :: Parser MDElem
+orderedList = do
+  _ <- word8 10
+  _ <- satisfy isDigit
+  text <- word8 46 *> many (word8 32) *> takeTill isEndOfLine
+  return (OrderedListElem text)
+
+unOrderedList :: Parser MDElem
+unOrderedList = do
+  _ <- satisfy isAstrOrUds
+  text <- some (word8 32) *> takeTill isEndOfLine
+  return (UnorderedListElem text)
 
 header :: Parser MDElem
 header = h1 <|> h2 <|> h3 <|> h4 <|> h5 <|> h6 <|> h7

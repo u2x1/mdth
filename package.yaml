@@ -24,6 +24,9 @@ dependencies:
 - bytestring
 - attoparsec
 - word8
+- hspec
+- QuickCheck
+- stringsearch
 
 library:
   source-dirs: src
