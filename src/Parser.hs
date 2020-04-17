@@ -4,16 +4,18 @@ module Parser where
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.Combinator
 import Data.ByteString (ByteString, pack, singleton)
+import Data.Functor
 import Data.Word8
 import Control.Applicative
 import Type
 
 mdElem :: Parser MDElem
-mdElem = blockquotes <|> orderedList <|> unOrderedList <|> codeBlock <|> header <|> para
+mdElem = blockquotes <|> orderedList <|> unorderedList <|> codeBlock <|> header <|> hrztRule <|> para
 
 para :: Parser MDElem
 para = Paragrah <$> do
-  paras <- manyTill (italic <|> bold <|> boldAndItalic <|> code <|> plainText) (satisfy isEndOfLine)
+  paras <- manyTill (italic <|> bold <|> boldAndItalic <|> strikethrough <|> link <|> image <|> code <|> plainText)
+              (satisfy isEndOfLine)
   _ <- many' (satisfy isEndOfLine)
   return paras
 
@@ -49,6 +51,31 @@ boldAndItalic = do
   _ <- string $ pack.reverse $ m
   return (BoldAndItalic text)
 
+strikethrough :: Parser MDElem
+strikethrough = Strikethrough . pack <$> (string "~~" *> manyTill' anyWord8 (string "~~"))
+
+linkAndImageBracket :: Parser (ByteString, ByteString, Maybe ByteString)
+linkAndImageBracket = do
+  text <- word8 91 *> takeTill (== 93) <* word8 93
+  url <- word8 40 *> takeTill (\w -> w == 32 || w == 41)
+  s <- lookAhead (many' (word8 32) *> anyWord8)
+  if s == 34
+     then do
+       title <- many' (word8 32) *> word8 34 *> takeTill (== 34) <* word8 34 <* word8 41
+       return (text, url, Just title)
+       else word8 41 $> (text, url, Nothing)
+
+link :: Parser MDElem
+link = do
+  (text, url, title) <- linkAndImageBracket
+  return (Link text url title)
+
+image :: Parser MDElem
+image = do
+  _ <- word8 33
+  (text, url, title) <- linkAndImageBracket
+  return (Image text url title)
+
 code :: Parser MDElem
 code = do
   _ <- word8 96
@@ -68,29 +95,49 @@ codeBlock = do
              then return (CodeBlock $ t1 <> t2)
              else checkEnd (t1 <> s)
 
+hrztRule :: Parser MDElem
+hrztRule = do
+  _ <- count 3 (satisfy isAstrOrUdsOrDash) *> many' (satisfy isAstrOrUdsOrDash)
+  return HorizontalRule
+  where
+    isAstrOrUdsOrDash w = isAstrOrUds w || w == 45
+
 blockquotes :: Parser MDElem
 blockquotes = do
-  _ <- word8 10
   _ <- word8 62
   _ <- many (word8 32)
   curntLine <- takeTill isEndOfLine
-  case parseOnly (many mdElem) curntLine of
+  case parseOnly (some mdElem) curntLine of
     Right mdElems -> return (Blockquotes mdElems)
     Left _ -> return (Blockquotes [PlainText curntLine])
 
-
 orderedList :: Parser MDElem
-orderedList = do
-  _ <- word8 10
-  _ <- satisfy isDigit
-  text <- word8 46 *> many (word8 32) *> takeTill isEndOfLine
-  return (OrderedListElem text)
+orderedList = OrderedList . mconcat <$> some (some (satisfy isDigit) *> word8 46 *> listElem 0)
 
-unOrderedList :: Parser MDElem
-unOrderedList = do
-  _ <- satisfy isAstrOrUds
-  text <- some (word8 32) *> takeTill isEndOfLine
-  return (UnorderedListElem text)
+unorderedList :: Parser MDElem
+unorderedList = UnorderedList . mconcat <$> some (satisfy isAstrOrDash *> listElem 0)
+  where isAstrOrDash w = w == 42 || w == 43 || w == 45
+
+orderedList' :: Int -> Parser MDElem
+orderedList' indent = OrderedList . mconcat <$> some (count indent (word8 32) *> some (satisfy isDigit) *> word8 46 *> listElem indent)
+
+unorderedList' :: Int ->  Parser MDElem
+unorderedList' indent = UnorderedList . mconcat <$> some (count indent (word8 32) *> satisfy isAstrOrDash *> listElem indent)
+  where isAstrOrDash w = w == 42 || w == 43 || w == 45
+
+listElem :: Int -> Parser [MDElem]
+listElem hIndent = do
+  _ <- some (word8 32)
+  text <- takeTill isEndOfLine <* satisfy isEndOfLine
+  s <- pack <$> lookAhead (count (hIndent+1) anyWord8)
+  if s == mconcat (replicate (hIndent + 1) " ")
+     then do
+       spaceCnt <- many' (satisfy isEndOfLine) *> lookAhead (count hIndent (word8 32) *> some (word8 32))
+       let indent = hIndent + length spaceCnt
+       inListElem <- codeBlock <|> image <|> orderedList' indent <|> unorderedList' indent <|> para <|> blockquotes
+       return [OrderedListElem text, inListElem]
+     else return [OrderedListElem text]
+
 
 header :: Parser MDElem
 header = h1 <|> h2 <|> h3 <|> h4 <|> h5 <|> h6 <|> h7

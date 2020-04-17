@@ -1,10 +1,6 @@
 module Type where
 
 import Data.ByteString
-import Data.Word8
-
-newtype Markdown = Markdown [MDElem]
-  deriving (Show)
 
 data MDElem = Header1             ByteString
             | Header2             ByteString
@@ -19,11 +15,15 @@ data MDElem = Header1             ByteString
             | Italic              ByteString
             | Bold                ByteString
             | BoldAndItalic       ByteString
+            | Strikethrough       ByteString
             | Code                ByteString
             | CodeBlock           ByteString
-            | Link                ByteString ByteString ByteString
-            | Image               ByteString ByteString ByteString
+            | Link                ByteString ByteString (Maybe ByteString)
+            | Image               ByteString ByteString (Maybe ByteString)
+            | OrderedList         [MDElem]
+            | UnorderedList       [MDElem]
             | OrderedListElem     ByteString
             | UnorderedListElem   ByteString
             | Blockquotes         [MDElem]
+            | HorizontalRule
   deriving (Show)

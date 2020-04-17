@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b7698125e7279efe3df5ac8e6ffff25755cf2a6a9cf0f697db7164a83a582044
+-- hash: eb6ed0aa44e9ecd49208e449ae5589780d0aec267f46508410cba20c2bbf0413
 
 name:           mdth
 version:        0.1.0.0
@@ -50,7 +50,7 @@ executable mdth-exe
       Paths_mdth
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , attoparsec
