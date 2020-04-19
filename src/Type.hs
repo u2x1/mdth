@@ -22,8 +22,7 @@ data MDElem = Header1             ByteString
             | Image               ByteString ByteString (Maybe ByteString)
             | OrderedList         [MDElem]
             | UnorderedList       [MDElem]
-            | OrderedListElem     ByteString
-            | UnorderedListElem   ByteString
+            | ListElem     ByteString
             | Blockquotes         [MDElem]
             | HorizontalRule
   deriving (Show)

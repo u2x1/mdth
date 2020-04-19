@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Parser where
 
-import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString as APB
 import Data.Attoparsec.Combinator
-import Data.ByteString (ByteString, pack, singleton)
+import Data.ByteString as BS (ByteString, pack, singleton)
 import Data.Functor
 import Data.Word8
 import Control.Applicative
@@ -85,31 +85,28 @@ code = do
 
 codeBlock :: Parser MDElem
 codeBlock = do
-  _ <- string "```"
-  t1 <- takeTill (== 96)
-  checkEnd t1
-  where checkEnd t1 = do
-          t2 <- takeTill (== 96)
-          s <- string "```" <|> takeWhile1 (== 96)
-          if s == "```"
-             then return (CodeBlock $ t1 <> t2)
-             else checkEnd (t1 <> s)
+  _ <- string "```" <* skipEndOfLine
+  CodeBlock . pack <$> (manyTill anyWord8 (string "```") <* skipEndOfLine)
 
 hrztRule :: Parser MDElem
 hrztRule = do
   _ <- count 3 (satisfy isAstrOrUdsOrDash) *> many' (satisfy isAstrOrUdsOrDash)
-  return HorizontalRule
+  HorizontalRule <$ skipEndOfLine
   where
     isAstrOrUdsOrDash w = isAstrOrUds w || w == 45
 
+skipEndOfLine :: Parser [Word8]
+skipEndOfLine = many (satisfy isEndOfLine)
+
 blockquotes :: Parser MDElem
 blockquotes = do
-  _ <- word8 62
-  _ <- many (word8 32)
-  curntLine <- takeTill isEndOfLine
-  case parseOnly (some mdElem) curntLine of
+  cnt <- length <$> lookAhead (some takePrefix)
+  text <- mconcat <$> some ((<>"\n") <$> (count cnt takePrefix *> takeTill isEndOfLine <* satisfy isEndOfLine))
+  case parseOnly (some mdElem) text of
     Right mdElems -> return (Blockquotes mdElems)
-    Left _ -> return (Blockquotes [PlainText curntLine])
+    Left _ -> return (Blockquotes [PlainText text])
+  where
+    takePrefix = word8 62 <* many (word8 32)
 
 orderedList :: Parser MDElem
 orderedList = OrderedList . mconcat <$> some (some (satisfy isDigit) *> word8 46 *> listElem 0)
@@ -122,7 +119,7 @@ orderedList' :: Int -> Parser MDElem
 orderedList' indent = OrderedList . mconcat <$> some (count indent (word8 32) *> some (satisfy isDigit) *> word8 46 *> listElem indent)
 
 unorderedList' :: Int ->  Parser MDElem
-unorderedList' indent = UnorderedList . mconcat <$> some (count indent (word8 32) *> satisfy isAstrOrDash *> listElem indent)
+unorderedList' indent = UnorderedList . mconcat <$> (some (count indent (word8 32) *> satisfy isAstrOrDash *> listElem indent) <* skipEndOfLine)
   where isAstrOrDash w = w == 42 || w == 43 || w == 45
 
 listElem :: Int -> Parser [MDElem]
@@ -133,10 +130,11 @@ listElem hIndent = do
   if s == mconcat (replicate (hIndent + 1) " ")
      then do
        spaceCnt <- many' (satisfy isEndOfLine) *> lookAhead (count hIndent (word8 32) *> some (word8 32))
-       let indent = hIndent + length spaceCnt
-       inListElem <- codeBlock <|> image <|> orderedList' indent <|> unorderedList' indent <|> para <|> blockquotes
-       return [OrderedListElem text, inListElem]
-     else return [OrderedListElem text]
+       let indent = hIndent + Prelude.length spaceCnt
+       inListElem <-
+         codeBlock <|> image <|> orderedList' indent <|> unorderedList' indent <|> para <|> blockquotes
+       return [ListElem text, inListElem]
+     else return [ListElem text]
 
 
 header :: Parser MDElem
@@ -167,8 +165,8 @@ header' :: Int -> Parser ByteString
 header' i = do
   _ <- count i (word8 35)
   _ <- lookAhead (notWord8 35)
-  _ <- many (word8 32)
-  takeTill isEndOfLine
+  _ <- some (word8 32)
+  takeTill isEndOfLine <* skipEndOfLine
 
 isEndOfLine :: Word8 -> Bool
 isEndOfLine w = w == 10 || w == 13
